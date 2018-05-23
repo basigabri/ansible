@@ -1,0 +1,8 @@
+graphiteHost = {{ graphite_endpoint }}
+httpListen = :{{ bosun_port }} 
+smtpHost = localhost:25
+emailFrom = bosun@{{ public_fqdn }}
+hostname = {{ ansible_hostname }}:8070
+timeAndDate = 202,75,179,136
+ledisDir = {{ ledis_dir }}
+checkFrequency = 5m

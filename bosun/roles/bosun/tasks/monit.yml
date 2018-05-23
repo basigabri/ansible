@@ -1,0 +1,24 @@
+---
+
+- name: install monit
+  yum:
+    name: "{{ item }}"
+    state: installed
+    disablerepo: "*"
+    enablerepo: your_repo_name_here 
+    update_cache: yes
+  with_items:
+      - monit
+  tags: monit_install
+
+- name: add monit config 
+  template:
+    src: monit_bosun.conf.j2
+    dest: /etc/monit.d/bosun.conf
+    owner: root
+    group: root
+    mode: 0744
+  notify: start_monit
+  tags: monit_conf
+
+

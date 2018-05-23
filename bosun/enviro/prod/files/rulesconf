@@ -1,0 +1,160 @@
+graphiteHost = http://graphite-api
+httpListen = :8070
+smtpHost = localhost:25
+emailFrom = bosun@hostname.com
+hostname = hostname:8070
+timeAndDate = 202,75,179,136
+ledisDir = /u01/app
+checkFrequency = 5m
+
+
+template toolchain_resource {
+  body = `<a href="{{.Ack}}">Acknowledge alert</a>
+  <hr>
+  <table>
+    {{range $k, $v := .Group}}
+      {{if eq $k "host"}}
+        <tr><td><b>{{$k}}:</b></td><td><a href="{{$.HostView $v}}">{{$v}}</a></td></tr>
+      {{else}}
+        <tr><td><b>{{$k}}:</b></td><td>{{$v}}</td></tr>
+      {{end}}
+    {{end}}
+  </table>
+
+  <p>{{ .Alert.Vars.notes}}
+   <h4>Computation</h4>
+  <table>
+    {{range .Computations}}
+  <tr><td>{{.Text}}</td><td>{{.Value}}</td></tr>
+    {{end}}
+    </table>
+  <hr>
+  <p><b>Alert definition:</b>
+  <p>Name: {{.Alert.Name}}
+  <p>Crit: {{.Alert.Crit}}
+  <p><b>Actions to take:</b>
+  <p>Please read carefully <a href="https://mykiwi-page.com-{{.Alert.Vars.HelpTitle}}">Common Incidents Page</a> to resolve issue. Don't forget to add your notes, if you find something undocumented!
+  <p><b>After the incident is resolved, please close the issue into Bosun !</b>`
+  subject = status={{.Last.Status}}, service={{.Alert.Name}}, {{ .Group }}
+}
+
+#Notification methods
+
+notification json_test_toolchain {
+  post = https://events.pagerduty.com/generic/2010-04-15/create_event.json
+  body = { "event_type": "trigger", "description" : {{.|json}}, "service_key": "my_key", "details": "" }
+  contentType = application/json
+}
+}
+notification pagerduty_sre_mail {
+  email = myaccount@sre.pagerduty.com
+  timeout = 60m
+  next =  pagerduty_sre_mail
+}
+
+notification telemetry_notify {
+  email = sre_telemetry_notify_grp@domain.com
+}
+
+#notification elastic {
+#  post = http://elastic_endpoint.com/bosun/data
+#  body = {"@timestamp":"`Time: {{.Last.Time.Format  "15:04:05UTC"}}`", "status":"{{.Last.Status}}", "alarm":"{{.Alert.Name}}", "info":"{{.Group}}"}
+#}
+
+# Macros
+
+macro graphite1 {
+  $graphite_host_prefix = graphitesyd-
+}
+
+# Alerts
+
+alert es.resource.alert.cluster_state {
+  template = toolchain_resource
+  $notes = This alert is triggered when the cluster state is not correct. YELLOW state returns WARN and RED state returns CRIT.
+  $crit_time = 12m
+  $warn_time = 30m
+  $warncheck = avg(graphite("averageSeriesWithWildcards(paas.sre.es.es5-master*.elasticsearch.cluster_health.status,4)", "$warn_time", "", "...env..resource"))
+  $critcheck = avg(graphite("averageSeriesWithWildcards(paas.sre.es.es5-master*.elasticsearch.cluster_health.status,4)", "$crit_time", "", "...env..resource"))
+  warn = $warncheck <= 1
+  warnNotification = pagerduty_sre_mail
+  crit = $critcheck <= 0.5
+  critNotification = pagerduty_sre_mail
+  ignoreUnknown = true
+}
+
+alert es.resource.alert.cluster_shards {
+  template = toolchain_resource
+  $notes = This alert is triggered when the cluster has unassigned shards (more than 1) during 30minutes.
+  $crit_time = 30m
+  $values = graphite("averageSeriesWithWildcards(paas.sre.es.*.*.elasticsearch.cluster_health.shards.unassigned,5)", "$crit_time", "", "...env.host")
+  $xvalues = streak($values)
+  crit = $xvalues > 30
+  critNotification = pagerduty_sre_mail
+  ignoreUnknown = true
+  #maxLogFrequency = 15m
+}
+
+alert es.resource.alert.cluster_datastore {
+  template = toolchain_resource
+  $notes = This alert is triggered when ES cluster is getting full
+  $crit_time = 60m
+  $total = avg(graphite("sumSeriesWithWildcards(sumSeriesWithWildcards(paas.sre.es.*.*.elasticsearch.instance*.datastore.total, 6), 4)", "$crit_time", "", "...env"))
+  $available = avg(graphite("sumSeriesWithWildcards(sumSeriesWithWildcards(paas.sre.es.*.*.elasticsearch.instance*.datastore.available, 6), 4)", "$crit_time", "", "...env"))
+  $used = ($total - $available)
+  $percent_used = 100 * ($used / $total)
+  warn = $percent_used > 75
+  crit = $percent_used > 85
+  warnNotification = pagerduty_sre_mail
+  critNotification = pagerduty_sre_mail
+  ignoreUnknown = true
+  }
+
+alert carbon.metrics.dropped {
+  template = toolchain_resource
+  $notes = This alert is triggered when a Carbon relay drops metrics
+  $crit_time = 15m
+  $dropped = avg(graphite("carbon.relays.*.metricsDropped, 2", "$crit_time", "1m", "..host"))
+  warn = $dropped > 25000
+  crit = $dropped > 30000
+  warnNotification = pagerduty_toolchain_mail
+  critNotification = pagerduty_toolchain_mail
+  ignoreUnknown = true
+}
+
+alert carbon.metrics.absense {
+  template = toolchain_resource
+  $carbons_prefix =
+  $expected_number_of_carbon_hosts = 5
+  $metric_start = 6m
+  $metric_end = 3m
+  $notes = This alert is triggered when a carbon relay has not sent metrics to graphite.
+  $critcheck = avg(graphite("sumSeries(offset(scale(carbon.relays.$carbons_prefix*.metricsDropped, 0), 1))","$metric_start", "$metric_end", ".type"))
+  crit = $critcheck < $expected_number_of_carbon_hosts - 0.9
+  critNotification = pagerduty_toolchain_mail
+  ignoreUnknown = true
+}
+
+alert carbon.metrics.sent {
+  template = toolchain_resource
+  $notes = This alert is triggered when Graphite writes more than 3M metrics/min.
+  $crit_time = 15m
+  $sent = avg(graphite("sumSeries(carbon.relays.*.metricsSent), 2", "$crit_time", "1m", "."))
+  warn = ($sent > 3500000) || ($sent < 1000)
+  crit = ($sent > 3000000) || ($sent < 1000)
+  warnNotification = pagerduty_toolchain_mail
+  critNotification = pagerduty_toolchain_mail
+}
+
+alert cassandra.node.gossip {
+  template = toolchain_resource
+  macro = graphite1
+  $HelpTitle = Symptom-cassandra.gossip.alert
+  $notes = This alert is triggered when a cassandra node cannot gossip to another node.
+  $nodecheck = avg(graphite("paas.sre.graphite.*.$graphite_host_prefix-cassandra*.cassandra.gossip.unreachable.count", "15m", "", "...env.host"))
+  $crit_time = 15m
+  #this is set to 0.5, we don't want other outages to report (i.e network outages)
+  crit = $nodecheck > 0.5
+  critNotification = pagerduty_toolchain_mail
+  ignoreUnknown = true
+}

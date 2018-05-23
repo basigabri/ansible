@@ -1,0 +1,75 @@
+#!/bin/bash
+#chkconfig: 2345 80 80
+#description: Bosun Server
+
+NAME=bosun
+PIDFILE=/var/run/bosun.pid
+SCRIPTNAME=/etc/init.d/bosun
+LOCKDIR=/var/lock/subsys
+LOCKFILE=/var/lock/subsys/bosun
+
+#This is used instead of lsb since lsb will download 124Mb
+. /etc/rc.d/init.d/functions
+
+start() {
+  echo "Starting $NAME: "
+  exec 200>$LOCKFILE
+  if flock -n 200 ;
+    then
+    /usr/bin/bosun -c /etc/bosun/bosun.conf >> /var/log/bosun/bosun.log 2>&1 &
+  else
+    echo "$NAME is already running."
+    exit 1
+  fi
+}
+start-quiet() {
+  echo "Starting $NAME: "
+  exec 200>$LOCKFILE
+  if flock -n 200 ;
+    then
+    /usr/bin/bosun -c /etc/bosun/bosun.conf >> /var/log/bosun/bosun.log 2>&1 &
+  else
+    echo "$NAME is already running."
+    exit 1
+  fi
+}
+
+stop() {
+  echo "Stopping $NAME:"
+  killproc bosun
+  rm $LOCKFILE
+}
+
+
+case "$1" in
+  start)
+    start
+    ;;
+  start-quiet)
+    start-quiet
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  restart-quiet)
+    stop
+    start-quiet
+    ;;
+  reload)
+    stop
+    start
+    ;;
+  status)
+    status bosun
+    ;;
+  *)
+    echo "Usage: $0 {start-quiet|start|stop|restart|restart-quiet|reload|status}"
+    exit 2
+    ;;
+esac
+
+exit $?

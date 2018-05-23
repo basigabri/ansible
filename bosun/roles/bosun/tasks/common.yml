@@ -1,0 +1,10 @@
+---
+- name: Enable services for automatic start
+  service:
+    name: "{{ item }}"
+    enabled: yes
+  with_items:
+    - bosun
+    - monit
+    - postfix
+  tags: enable_services

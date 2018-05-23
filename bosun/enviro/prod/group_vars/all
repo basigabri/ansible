@@ -1,0 +1,14 @@
+public_fqdn: myfqdn.here 
+graphite_endpoint: http://graphite-endpoint
+http_proxy: http://my-proxy-here:80
+smtp_relay: my_smtp_relay_here 
+logrotate_scripts:
+  - name: bosun
+    path: /var/log/bosun/bosun.log
+    options:
+      - daily
+      - rotate 7
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate

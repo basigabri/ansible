@@ -1,0 +1,3 @@
+graphite_endpoint: test.localhost
+bosun_port: 8070
+http_proxy: test.proxy:80 

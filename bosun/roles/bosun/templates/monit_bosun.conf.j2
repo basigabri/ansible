@@ -1,0 +1,4 @@
+check host bosun with address 127.0.0.1
+    start program = "/etc/init.d/bosun start" with timeout 5 seconds
+    stop program = "/etc/init.d/bosun stop" with timeout 5 seconds
+     if failed port {{ bosun_port }}  protocol http then restart

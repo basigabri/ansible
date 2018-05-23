@@ -1,0 +1,38 @@
+---
+
+- name: install bosun
+  yum:
+    name: "{{ item }}"
+    state: installed
+    disablerepo: "*"
+    enablerepo: sre-management
+    update_cache: yes
+  with_items:
+      - bosun
+  tags: install
+
+- name: insert bosun initfile 
+  template:
+    src: bosun_init.j2 
+    dest: /etc/init.d/bosun
+    owner: root
+    group: root
+    mode: 0744
+  tags: initconf
+         
+- name: Create bosun dir
+  file: dest={{item}} owner=root group=root mode=0755 state=directory
+  with_items:
+    - /etc/bosun
+    - /var/log/bosun
+  tags: mkdir
+
+- name: Insert Bosun conf file
+  copy:
+    src: "{{ inventory_dir }}/files/rulesconf"
+    dest: "/etc/bosun/bosun.conf"
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_bosun
+  tags: bosunconf 

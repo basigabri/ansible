@@ -1,0 +1,17 @@
+---
+
+- name: install the latest version of postfix
+  yum:
+    name: postfix
+    state: present
+  tags: install_mx
+
+- name: add postfix main.cf template
+  template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_postfix
+  tags: mx

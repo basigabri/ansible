@@ -1,0 +1,6 @@
+---
+
+- include: bosun.yml
+- include: monit.yml
+- include: postfix.yml
+- include: common.yml

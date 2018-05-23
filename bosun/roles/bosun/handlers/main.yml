@@ -1,0 +1,46 @@
+- name: start_bosun
+  service:
+    name: 'bosun'
+    state: 'started'
+
+- name: restart_bosun
+  service:
+    name: 'bosun'
+    state: 'restarted'
+
+- name: stop_bosun
+  service:
+    name: 'bosun'
+    state: 'stopped'
+
+- name: start_quiet_bosun
+  service:
+    name: 'bosun'
+    state: 'start-quiet'
+
+- name: restart_quiet_bosun
+  service:
+    name: 'bosun'
+    state: 'restart-quiet'
+
+- name: start_monit
+  service:
+    name: 'monit'
+    state: 'started'
+
+- name: start_postfix
+  service:
+    name: 'postfix'
+    state: 'started'
+
+- name: restart_postfix
+  service:
+    name: 'postfix'
+    state: 'restarted'
+
+
+- name: stop_sendmail
+  service:
+    name: 'sendmail'
+    state: 'stopped'
+

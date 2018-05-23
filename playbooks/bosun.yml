@@ -1,0 +1,25 @@
+---
+- hosts: all 
+  remote_user: root
+  gather_facts: True 
+  become: true
+  become_user: root
+  strategy: free
+
+
+
+  vars:
+    logrotate_scripts:
+      - name: bosun
+        path: /var/log/bosun/bosun.log
+        options:
+          - daily
+          - rotate 7
+          - compress
+          - missingok
+          - notifempty
+          - copytruncate
+
+  roles:
+     - bosun
+     - logrotate
